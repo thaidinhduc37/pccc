@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ứng phó Bão số 13 - Đắk Lắk</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.plot.ly/plotly-2.30.0.min.js"></script>
+    <!-- Chosen Palette: Calm Emergency (Warm Neutral, Blue, Red, Green) -->
+    <!-- Application Structure Plan: Sử dụng cấu trúc tab tương tác (Tổng quan, Trước Bão, Trong Bão, Sau Bão). Cấu trúc này được chọn vì nó cho phép người dùng truy cập thông tin theo định hướng nhiệm vụ. Ví dụ, người dùng trong tình huống khẩn cấp có thể nhấp ngay vào tab "Trong Bão" để xem các quy tắc an toàn, trong khi người đang lập kế hoạch có thể tập trung vào "Trước Bão". Điều này hiệu quả hơn một báo cáo tuyến tính để truyền đạt thông tin phòng chống thiên tai. -->
+    <!-- Visualization & Content Choices: 
+        - Tổng Quan: Mục tiêu(Thông tin) -> Thống kê Lớn (HTML/Tailwind) cho BĐ2+ & Chart.js Bar Chart (Mức độ Rủi ro) -> Tương tác(Di chuột) -> Lý do(Tóm tắt nhanh, tác động cao) -> Chart.js(Canvas), KHÔNG SVG.
+        - Trước Bão: Mục tiêu(Tổ chức) -> Thẻ Checklist (HTML/Tailwind) + Biểu tượng Unicode (Gia cố, Dự trữ, Sơ tán) -> Tương tác(Quét nhanh) -> Lý do(Danh sách việc cần làm rõ ràng) -> HTML/CSS, KHÔNG SVG.
+        - Trong Bão: Mục tiêu(So sánh) -> 2 Cột "Nên/Không Nên" (HTML/Tailwind) + Biểu tượng Unicode (✅, ⛔) -> Tương tác(Phân tách trực quan) -> Lý do(Quy tắc an toàn dễ quét, tương phản cao) -> HTML/CSS, KHÔNG SVG.
+        - Sau Bão: Mục tiêu(Tổ chức) -> Thẻ Bước có Đánh số (HTML/Tailwind) (Kiểm tra điện, Vệ sinh) -> Tương tác(Không) -> Lý do(Quy trình phục hồi rõ ràng) -> HTML/CSS, KHÔNG SVG.
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        :root {
+            --bg-main: #f8f7f5;
+            --text-dark: #333;
+            --text-light: #555;
+            --accent-blue: #2563eb;
+            --accent-red: #dc2626;
+            --accent-green: #16a34a;
+            --border-color: #e5e7eb;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-main);
+            color: var(--text-dark);
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 300px;
+            max-height: 350px;
+        }
+
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 350px;
+            }
+        }
+
+        .tab-btn {
+            padding: 0.75rem 1rem;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s ease;
+            font-weight: 600;
+            color: var(--text-light);
+        }
+
+        .tab-btn.active {
+            color: var(--accent-blue);
+            border-bottom-color: var(--accent-blue);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+            animation: fadeIn 0.5s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .stat-card {
+            background-color: #ffffff;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+        }
+
+        .action-card {
+            background-color: #ffffff;
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .action-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px 0 rgba(0, 0, 0, 0.07);
+        }
+    </style>
+</head>
+
+<body class="antialiased">
+
+    <header class="bg-white shadow-sm border-b border-gray-200">
+        <div class="container mx-auto px-4 py-5">
+            <h1 class="text-2xl md:text-3xl font-bold text-center" style="color: var(--accent-blue);">Ứng Phó Bão Số 13
+                (Kalmaegi) tại Đắk Lắk</h1>
+            <p class="text-center text-md" style="color: var(--text-light); margin-top: 0.25rem;">Thông tin tương tác
+                chủ động phòng tránh Lũ quét & Sạt lở đất</p>
+        </div>
+    </header>
+
+    <nav class="bg-white sticky top-0 z-10 shadow-md">
+        <div class="container mx-auto flex justify-center border-b" style="border-color: var(--border-color);">
+            <button class="tab-btn active" data-tab="overview">Tổng Quan</button>
+            <button class="tab-btn" data-tab="before">Trước Bão</button>
+            <button class="tab-btn" data-tab="during">Trong Bão</button>
+            <button class="tab-btn" data-tab="after">Sau Bão</button>
+        </div>
+    </nav>
+
+    <main class="container mx-auto p-4 md:p-8">
+
+        <div id="tab-overview" class="tab-content active">
+            <div class="text-center mb-6">
+                <h2 class="text-2xl font-semibold mb-2">Tình hình Bão số 13</h2>
+                <p class="text-lg" style="color: var(--text-light);">Bão Kalmaegi mạnh Cấp 13, giật Cấp 17, gây mưa lớn
+                    từ đêm 6/11 - 9/11.</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                <div class="stat-card text-center">
+                    <span class="text-5xl">⚠️</span>
+                    <h3 class="text-xl font-semibold mt-2">Nguy cơ Lũ</h3>
+                    <p class="text-2xl font-bold" style="color: var(--accent-red);">BĐ2 và trên BĐ2</p>
+                </div>
+                <div class="stat-card text-center">
+                    <span class="text-5xl">⛰️</span>
+                    <h3 class="text-xl font-semibold mt-2">Nguy cơ Sạt Lở</h3>
+                    <p class="text-2xl font-bold" style="color: var(--accent-red);">Rất Cao</p>
+                    <p style="color: var(--text-light);">Đặc biệt vùng núi phía Đông</p>
+                </div>
+                <div class="stat-card text-center">
+                    <span class="text-5xl">🌧️</span>
+                    <h3 class="text-xl font-semibold mt-2">Dự báo Mưa Lớn</h3>
+                    <p class="text-xl font-bold" style="color: var(--accent-blue);">Từ 6/11 - 9/11</p>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-lg shadow-md p-4 md:p-6">
+                <h3 class="text-xl font-semibold text-center mb-4">Phân tích Mức độ Nguy cơ Chính</h3>
+                <div class="chart-container">
+                    <canvas id="riskChart"></canvas>
+                </div>
+                <p class="text-center mt-4" style="color: var(--text-light);">Lũ quét và sạt lở đất là hai mối nguy hiểm
+                    chết người hàng đầu tại Đắk Lắk khi bão về. Tuyệt đối không chủ quan.</p>
+            </div>
+        </div>
+
+        <div id="tab-before" class="tab-content">
+            <h2 class="text-2xl font-semibold text-center mb-6">Hành Động TRƯỚC Khi Bão Đến</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="action-card">
+                    <span class="text-5xl">🏠</span>
+                    <h3 class="text-xl font-bold mt-3 mb-2">1. Gia Cố Nhà Cửa</h3>
+                    <ul class="list-disc list-inside space-y-2" style="color: var(--text-light);">
+                        <li>Kiểm tra, chằng chống mái nhà (đặc biệt là mái tôn).</li>
+                        <li>Cắt tỉa cành cây lớn, mục rỗng gần nhà.</li>
+                        <li>Khơi thông cống rãnh, lối thoát nước.</li>
+                    </ul>
+                </div>
+                <div class="action-card">
+                    <span class="text-5xl">🎒</span>
+                    <h3 class="text-xl font-bold mt-3 mb-2">2. Chuẩn Bị Nhu Yếu Phẩm</h3>
+                    <ul class="list-disc list-inside space-y-2" style="color: var(--text-light);">
+                        <li>Nước uống & Thực phẩm khô (đủ 3-5 ngày).</li>
+                        <li>Đèn pin, pin dự phòng, Radio (để nghe tin).</li>
+                        <li>Bộ sơ cứu y tế, thuốc men thiết yếu.</li>
+                        <li>Sạc đầy điện thoại, pin dự phòng.</li>
+                    </ul>
+                </div>
+                <div class="action-card">
+                    <span class="text-5xl">🚶‍♂️</span>
+                    <h3 class="text-xl font-bold mt-3 mb-2">3. Sẵn Sàng Sơ Tán</h3>
+                    <ul class="list-disc list-inside space-y-2" style="color: var(--text-light);">
+                        <li>Theo dõi sát lệnh sơ tán của chính quyền.</li>
+                        <li>Xác định nơi trú ẩn an toàn, kiên cố (nhà cộng đồng, trường học).</li>
+                        <li>Thông báo cho người thân, hàng xóm kế hoạch của bạn.</li>
+                        <li>Ưu tiên người già, trẻ em, người khuyết tật.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div id="tab-during" class="tab-content">
+            <h2 class="text-2xl font-semibold text-center mb-6">Nguyên Tắc An Toàn TRONG Bão Lũ</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+                <div class="rounded-lg p-6" style="background-color: #f0fdf4; border: 2px solid var(--accent-green);">
+                    <h3 class="text-2xl font-bold mb-4 flex items-center" style="color: var(--accent-green);">
+                        <span class="text-3xl mr-3">✅</span> NÊN LÀM (An Toàn)
+                    </h3>
+                    <ul class="list-disc list-inside space-y-3 text-lg">
+                        <li>**Ngắt cầu dao điện** và khóa van gas ngay lập tức.</li>
+                        <li>Trú ẩn ở nơi kiên cố, cao ráo nhất trong nhà.</li>
+                        <li>Tránh xa cửa sổ, cửa ra vào.</li>
+                        <li>Lắng nghe thông tin qua Radio (nếu mất điện).</li>
+                    </ul>
+                </div>
+
+                <div class="rounded-lg p-6" style="background-color: #fef2f2; border: 2px solid var(--accent-red);">
+                    <h3 class="text-2xl font-bold mb-4 flex items-center" style="color: var(--accent-red);">
+                        <span class="text-3xl mr-3">⛔</span> KHÔNG NÊN LÀM (Nguy Hiểm)
+                    </h3>
+                    <ul class="list-disc list-inside space-y-3 text-lg">
+                        <li>**KHÔNG** cố vượt qua sông, suối, ngầm tràn, dù nước nông.</li>
+                        <li>**KHÔNG** lại gần cột điện, dây điện bị đứt, hoặc khu vực sạt lở.</li>
+                        <li>**KHÔNG** ra ngoài vớt tài sản khi lũ đang lên.</li>
+                        <li>**KHÔNG** trú ẩn dưới gốc cây to, nhà tạm bợ.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div id="tab-after" class="tab-content">
+            <h2 class="text-2xl font-semibold text-center mb-6">Hành Động SAU Khi Lũ Rút</h2>
+            <div class="max-w-2xl mx-auto space-y-5">
+                <div class="action-card flex items-start">
+                    <span class="text-4xl font-bold mr-4" style="color: var(--accent-blue);">1.</span>
+                    <div>
+                        <h3 class="text-xl font-bold mb-1">Kiểm Tra Điện An Toàn</h3>
+                        <p style="color: var(--text-light);">Chỉ bật lại cầu dao điện khi hệ thống đã **khô ráo tuyệt
+                            đối**. Nếu nhà bị ngập, hãy gọi thợ điện chuyên nghiệp kiểm tra trước khi sử dụng.</p>
+                    </div>
+                </div>
+                <div class="action-card flex items-start">
+                    <span class="text-4xl font-bold mr-4" style="color: var(--accent-blue);">2.</span>
+                    <div>
+                        <h3 class="text-xl font-bold mb-1">Vệ Sinh & Phòng Dịch</h3>
+                        <p style="color: var(--text-light);">Dọn dẹp vệ sinh nhà cửa. **Khử trùng** giếng nước và khu
+                            vực bị ngập lụt bằng Cloramin B hoặc phèn chua để phòng tránh dịch bệnh (tiêu chảy, sốt xuất
+                            huyết).</p>
+                    </div>
+                </div>
+                <div class="action-card flex items-start">
+                    <span class="text-4xl font-bold mr-4" style="color: var(--accent-blue);">3.</span>
+                    <div>
+                        <h3 class="text-xl font-bold mb-1">Tiếp Tục Cảnh Giác</h3>
+                        <p style="color: var(--text-light);">Nguy cơ **sạt lở đất thứ cấp** vẫn có thể xảy ra sau khi
+                            mưa lớn đã kết thúc. Cẩn thận khi đi lại gần các sườn đồi, bờ sông. Kiểm tra độ an toàn của
+                            nhà cửa.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <footer class="text-center p-6 mt-10 border-t" style="border-color: var(--border-color);">
+        <p style="color: var(--text-light);">Thông tin dựa trên Sổ tay PCTT&TKCN và cảnh báo Bão số 13. Luôn ưu tiên an
+            toàn tính mạng.</p>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+
+            const tabs = document.querySelectorAll('.tab-btn');
+            const contents = document.querySelectorAll('.tab-content');
+
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    const target = tab.getAttribute('data-tab');
+
+                    tabs.forEach(t => t.classList.remove('active'));
+                    tab.classList.add('active');
+
+                    contents.forEach(c => {
+                        if (c.id === `tab-${target}`) {
+                            c.classList.add('active');
+                        } else {
+                            c.classList.remove('active');
+                        }
+                    });
+                });
+            });
+
+            function initOverviewChart() {
+                const ctx = document.getElementById('riskChart').getContext('2d');
+                if (!ctx) return;
+
+                const chartLabels = ['Lũ Quét', 'Sạt Lở Đất', ['Mưa Lớn', 'Ngập Úng']];
+
+                new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: chartLabels,
+                        datasets: [{
+                            label: 'Mức độ Nguy cơ (Trên thang 100)',
+                            data: [100, 90, 75],
+                            backgroundColor: [
+                                'rgba(220, 38, 38, 0.7)',
+                                'rgba(234, 88, 12, 0.7)',
+                                'rgba(37, 99, 235, 0.7)'
+                            ],
+                            borderColor: [
+                                'rgba(220, 38, 38, 1)',
+                                'rgba(234, 88, 12, 1)',
+                                'rgba(37, 99, 235, 1)'
+                            ],
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        indexAxis: 'y',
+                        scales: {
+                            x: {
+                                beginAtZero: true,
+                                max: 100
+                            }
+                        },
+                        plugins: {
+                            legend: {
+                                display: false
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    title: function (tooltipItems) {
+                                        const item = tooltipItems[0];
+                                        let label = item.chart.data.labels[item.dataIndex];
+                                        if (Array.isArray(label)) {
+                                            return label.join(' ');
+                                        } else {
+                                            return label;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+
+            initOverviewChart();
+        });
+    </script>
+</body>
+
+</html>
